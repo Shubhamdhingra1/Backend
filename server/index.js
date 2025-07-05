@@ -33,6 +33,7 @@ app.use('/api/documents', require('./routes/documents'));
 // Real-time collaboration
 const documentStates = {};
 const activeUsers = {}; // Track active users per document
+const documentUsers = {}; // Track all users who have opened the document
 
 io.on('connection', (socket) => {
   let currentDocId = null;
@@ -42,10 +43,14 @@ io.on('connection', (socket) => {
     // Leave previous document if any
     if (currentDocId) {
       socket.leave(currentDocId);
-      // Remove user from previous document's active users
+      // Remove user from previous document's active users and document users
       if (activeUsers[currentDocId]) {
         activeUsers[currentDocId].delete(currentUsername);
         socket.to(currentDocId).emit('active-users-update', Array.from(activeUsers[currentDocId]));
+      }
+      if (documentUsers[currentDocId]) {
+        documentUsers[currentDocId].delete(currentUsername);
+        socket.to(currentDocId).emit('document-users-update', Array.from(documentUsers[currentDocId]));
       }
     }
 
@@ -61,8 +66,12 @@ io.on('connection', (socket) => {
     if (!activeUsers[docId]) {
       activeUsers[docId] = new Set();
     }
+    if (!documentUsers[docId]) {
+      documentUsers[docId] = new Set();
+    }
     
-    // Add user to active users
+    // Add user to document users and active users
+    documentUsers[docId].add(username);
     activeUsers[docId].add(username);
     
     // Send current document state to the new user
@@ -71,9 +80,13 @@ io.on('connection', (socket) => {
     // Send current active users to the new user
     socket.emit('active-users-update', Array.from(activeUsers[docId]));
     
-    // Notify other users about the new active user
+    // Send all document users to the new user
+    socket.emit('document-users-update', Array.from(documentUsers[docId]));
+    
+    // Notify other users about the new user
     socket.to(docId).emit('user-joined', username);
     socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
+    socket.to(docId).emit('document-users-update', Array.from(documentUsers[docId]));
   });
 
   socket.on('send-changes', (data) => {
@@ -107,11 +120,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Remove user from active users when they disconnect
-    if (currentDocId && currentUsername && activeUsers[currentDocId]) {
-      activeUsers[currentDocId].delete(currentUsername);
-      socket.to(currentDocId).emit('user-left', currentUsername);
-      socket.to(currentDocId).emit('active-users-update', Array.from(activeUsers[currentDocId]));
+    // Remove user from active users and document users when they disconnect
+    if (currentDocId && currentUsername) {
+      if (activeUsers[currentDocId]) {
+        activeUsers[currentDocId].delete(currentUsername);
+        socket.to(currentDocId).emit('active-users-update', Array.from(activeUsers[currentDocId]));
+      }
+      if (documentUsers[currentDocId]) {
+        documentUsers[currentDocId].delete(currentUsername);
+        socket.to(currentDocId).emit('user-left', currentUsername);
+        socket.to(currentDocId).emit('document-users-update', Array.from(documentUsers[currentDocId]));
+      }
     }
   });
 });
