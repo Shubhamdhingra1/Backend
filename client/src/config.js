@@ -2,11 +2,11 @@
 const config = {
   // Development environment
   development: {
-    backendUrl: 'http://localhost:5000'
+    backendUrl: process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
   },
   // Production environment
   production: {
-    backendUrl: 'https://realtime-collaboration-platform-backend.onrender.com/' // Replace with your actual backend URL
+    backendUrl: process.env.REACT_APP_BACKEND_URL || 'https://realtime-collaboration-platform-backend.onrender.com'
   }
 };
 
