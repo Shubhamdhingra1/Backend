@@ -7,7 +7,7 @@ export default function AppNavbar() {
   
   return (
     <Navbar bg="dark" variant="dark" expand="lg" style={{ borderBottom: '1px solid #444' }}>
-      <Navbar.Brand href="/" style={{ fontWeight: 'bold' }}>RealTimeCollab</Navbar.Brand>
+      <Navbar.Brand href="/" style={{ fontWeight: 'bold' }}>Realtime Collab</Navbar.Brand>
       <Nav className="ms-auto">
         {user && (
           <>
