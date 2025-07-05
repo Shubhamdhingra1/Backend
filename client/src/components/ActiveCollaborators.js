@@ -2,11 +2,11 @@ import React from 'react';
 import { Badge } from 'react-bootstrap';
 import './ActiveCollaborators.css';
 
-const ActiveCollaborators = ({ collaborators, currentUser }) => {
+const ActiveCollaborators = ({ activeUsers, currentUser }) => {
   // Filter out the current user from the list
-  const otherCollaborators = collaborators.filter(user => user !== currentUser);
+  const otherActiveUsers = activeUsers.filter(user => user !== currentUser);
 
-  if (otherCollaborators.length === 0) {
+  if (otherActiveUsers.length === 0) {
     return null;
   }
 
@@ -14,10 +14,10 @@ const ActiveCollaborators = ({ collaborators, currentUser }) => {
     <div className="active-collaborators">
       <div className="active-collaborators-header">
         <span className="active-indicator"></span>
-        <span className="active-text">Active Collaborators:</span>
+        <span className="active-text">Actively Editing:</span>
       </div>
       <div className="collaborators-list">
-        {otherCollaborators.map((username) => (
+        {otherActiveUsers.map((username) => (
           <Badge
             key={username}
             className="collaborator-badge"

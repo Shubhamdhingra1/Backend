@@ -19,8 +19,6 @@ import ActiveCollaborators from "../components/ActiveCollaborators";
 import { BACKEND_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
-const socket = io(BACKEND_URL);
-
 function getColorForUser(name) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -37,15 +35,73 @@ export default function EditorPage() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [collaborators, setCollaborators] = useState([]);
+  const [activeUsers, setActiveUsers] = useState([]);
   const [versions, setVersions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [inviteUser, setInviteUser] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [error, setError] = useState("");
+  const [isUserActive, setIsUserActive] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const quillRef = useRef(null);
+  const activityTimeoutRef = useRef(null);
+  const socketRef = useRef(null);
 
   useEffect(() => {
+    // Initialize socket connection
+    const socket = io(BACKEND_URL, {
+      transports: ['websocket', 'polling'],
+      upgrade: true,
+      rememberUpgrade: true,
+      timeout: 20000,
+      forceNew: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      maxReconnectionAttempts: 5
+    });
+
+    socketRef.current = socket;
+
+    // Socket connection events
+    socket.on('connect', () => {
+      console.log('Socket connected');
+      setSocketConnected(true);
+      setError("");
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      setError("Failed to connect to real-time server");
+      setSocketConnected(false);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+      setSocketConnected(false);
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('Socket reconnected after', attemptNumber, 'attempts');
+      setSocketConnected(true);
+      setError("");
+      // Rejoin document room after reconnection
+      socket.emit("join-document", { docId: id, username });
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('Socket reconnection error:', error);
+      setError("Connection lost. Attempting to reconnect...");
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('Socket reconnection failed');
+      setError("Failed to reconnect to real-time server");
+    });
+
+    // Load document data
     API.get(`/documents/${id}`)
       .then((res) => {
         setContent(res.data.content);
@@ -56,8 +112,13 @@ export default function EditorPage() {
       .catch(() => setError("Failed to load document"));
 
     API.get(`/documents/${id}/versions`).then((res) => setVersions(res.data));
-    socket.emit("join-document", { docId: id, username });
 
+    // Join document room when socket is connected
+    socket.on('connect', () => {
+      socket.emit("join-document", { docId: id, username });
+    });
+
+    // Document events
     socket.on("document", (data) => setContent(data));
     socket.on("receive-changes", (data) => {
       if (typeof data === 'string') {
@@ -76,26 +137,86 @@ export default function EditorPage() {
     socket.on("user-left", (name) => {
       setCollaborators((prev) => prev.filter((n) => n !== name));
     });
+    socket.on("active-users-update", (users) => {
+      setActiveUsers(users);
+    });
 
     return () => {
+      // Cleanup socket events
+      socket.off('connect');
+      socket.off('connect_error');
+      socket.off('disconnect');
+      socket.off('reconnect');
+      socket.off('reconnect_error');
+      socket.off('reconnect_failed');
       socket.off("document");
       socket.off("receive-changes");
       socket.off("user-joined");
       socket.off("user-left");
+      socket.off("active-users-update");
+      
+      // Disconnect socket
+      socket.disconnect();
+      
+      // Clear activity timeout
+      if (activityTimeoutRef.current) {
+        clearTimeout(activityTimeoutRef.current);
+      }
     };
     // eslint-disable-next-line
-  }, [id]);
+  }, [id, username]);
 
   const handleChange = (value, delta, source, editor) => {
     // Only update content if the change is from user input
     if (source === 'user') {
       setContent(value);
       
-      // Send changes to other users
-      socket.emit("send-changes", {
-        delta: value,
-        username: username
-      });
+      // Only emit socket events if connected
+      if (socketRef.current && socketConnected) {
+        // Mark user as active
+        if (!isUserActive) {
+          setIsUserActive(true);
+          socketRef.current.emit("user-activity", { username, isActive: true });
+        }
+        
+        // Reset activity timeout
+        if (activityTimeoutRef.current) {
+          clearTimeout(activityTimeoutRef.current);
+        }
+        
+        // Set timeout to mark user as inactive after 30 seconds of no activity
+        activityTimeoutRef.current = setTimeout(() => {
+          setIsUserActive(false);
+          socketRef.current.emit("user-activity", { username, isActive: false });
+        }, 30000);
+        
+        // Send changes to other users
+        socketRef.current.emit("send-changes", {
+          delta: value,
+          username: username
+        });
+      }
+    }
+  };
+
+  const handleEditorFocus = () => {
+    // Mark user as active when they focus on the editor
+    if (!isUserActive && socketRef.current && socketConnected) {
+      setIsUserActive(true);
+      socketRef.current.emit("user-activity", { username, isActive: true });
+    }
+  };
+
+  const handleEditorBlur = () => {
+    // Mark user as inactive when they blur the editor
+    if (isUserActive && socketRef.current && socketConnected) {
+      setIsUserActive(false);
+      socketRef.current.emit("user-activity", { username, isActive: false });
+    }
+    
+    // Clear activity timeout
+    if (activityTimeoutRef.current) {
+      clearTimeout(activityTimeoutRef.current);
     }
   };
 
@@ -142,6 +263,11 @@ export default function EditorPage() {
 
       <Container fluid className="py-4">
         {error && <Alert variant="danger">{error}</Alert>}
+        {!socketConnected && (
+          <Alert variant="warning">
+            Connecting to real-time server... Please wait.
+          </Alert>
+        )}
         <Row>
           {/* Sidebar */}
           <Col md={3} className="mb-3">
@@ -219,13 +345,15 @@ export default function EditorPage() {
               <Card.Body>
                 {/* Active Collaborators */}
                 <ActiveCollaborators 
-                  collaborators={collaborators} 
+                  activeUsers={activeUsers} 
                   currentUser={username} 
                 />
                 
                 <ReactQuill
                   value={content}
                   onChange={handleChange}
+                  onFocus={handleEditorFocus}
+                  onBlur={handleEditorBlur}
                   style={{
                     height: "65vh",
                     background: "#181c20",
