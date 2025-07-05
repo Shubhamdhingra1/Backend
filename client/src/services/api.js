@@ -2,11 +2,25 @@ import axios from 'axios';
 
 // Use environment variable for backend URL, fallback to localhost for development
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-const API = axios.create({ baseURL: `${BACKEND_URL}/api` });
+const API = axios.create({ 
+  baseURL: `${BACKEND_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  }
+});
 
 API.interceptors.request.use((req) => {
   const token = localStorage.getItem('token');
   if (token) req.headers.Authorization = `Bearer ${token}`;
+  
+  // Add CORS headers to all requests
+  req.headers['Access-Control-Allow-Origin'] = '*';
+  req.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+  req.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+  
   return req;
 });
 

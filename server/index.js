@@ -8,24 +8,20 @@ const socketio = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// CORS configuration for both development and production
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://realtimecollaborationplatform.vercel.app',
-  'https://realtimecollaborationplatform.vercel.app/'
-];
-
+// CORS configuration to accept requests from any origin
 const io = socketio(server, { 
   cors: { 
-    origin: allowedOrigins, 
-    credentials: true,
-    methods: ["GET", "POST"]
+    origin: "*", 
+    credentials: false,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   } 
 });
 
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
+  origin: "*",
+  credentials: false,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
 
@@ -39,7 +35,23 @@ const documentStates = {};
 const activeUsers = {}; // Track active users per document
 
 io.on('connection', (socket) => {
+  let currentDocId = null;
+  let currentUsername = null;
+
   socket.on('join-document', ({ docId, username }) => {
+    // Leave previous document if any
+    if (currentDocId) {
+      socket.leave(currentDocId);
+      // Remove user from previous document's active users
+      if (activeUsers[currentDocId]) {
+        activeUsers[currentDocId].delete(currentUsername);
+        socket.to(currentDocId).emit('active-users-update', Array.from(activeUsers[currentDocId]));
+      }
+    }
+
+    currentDocId = docId;
+    currentUsername = username;
+    
     socket.join(docId);
     
     // Initialize document state and active users for this document
@@ -62,41 +74,45 @@ io.on('connection', (socket) => {
     // Notify other users about the new active user
     socket.to(docId).emit('user-joined', username);
     socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
+  });
+
+  socket.on('send-changes', (data) => {
+    if (!currentDocId) return;
     
-    socket.on('send-changes', (data) => {
-      const { delta, username } = data;
-      documentStates[docId] = delta;
-      
-      // Broadcast changes to other users
-      socket.to(docId).emit('receive-changes', {
-        delta,
-        username
-      });
-    });
+    const { delta, username } = data;
+    documentStates[currentDocId] = delta;
     
-    socket.on('user-activity', (data) => {
-      const { username, isActive } = data;
-      
-      if (isActive) {
-        // User is actively editing
-        activeUsers[docId].add(username);
-      } else {
-        // User stopped editing
-        activeUsers[docId].delete(username);
-      }
-      
-      // Broadcast updated active users list
-      socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
+    // Broadcast changes to other users
+    socket.to(currentDocId).emit('receive-changes', {
+      delta,
+      username
     });
+  });
+
+  socket.on('user-activity', (data) => {
+    if (!currentDocId) return;
     
-    socket.on('disconnect', () => {
-      // Remove user from active users when they disconnect
-      if (activeUsers[docId]) {
-        activeUsers[docId].delete(username);
-        socket.to(docId).emit('user-left', username);
-        socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
-      }
-    });
+    const { username, isActive } = data;
+    
+    if (isActive) {
+      // User is actively editing
+      activeUsers[currentDocId].add(username);
+    } else {
+      // User stopped editing
+      activeUsers[currentDocId].delete(username);
+    }
+    
+    // Broadcast updated active users list to all users in the document
+    io.to(currentDocId).emit('active-users-update', Array.from(activeUsers[currentDocId]));
+  });
+
+  socket.on('disconnect', () => {
+    // Remove user from active users when they disconnect
+    if (currentDocId && currentUsername && activeUsers[currentDocId]) {
+      activeUsers[currentDocId].delete(currentUsername);
+      socket.to(currentDocId).emit('user-left', currentUsername);
+      socket.to(currentDocId).emit('active-users-update', Array.from(activeUsers[currentDocId]));
+    }
   });
 });
 

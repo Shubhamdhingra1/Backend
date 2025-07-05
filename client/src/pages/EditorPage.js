@@ -138,6 +138,7 @@ export default function EditorPage() {
       setCollaborators((prev) => prev.filter((n) => n !== name));
     });
     socket.on("active-users-update", (users) => {
+      console.log('Received active users update:', users);
       setActiveUsers(users);
     });
 
@@ -176,6 +177,7 @@ export default function EditorPage() {
         // Mark user as active
         if (!isUserActive) {
           setIsUserActive(true);
+          console.log('Marking user as active:', username);
           socketRef.current.emit("user-activity", { username, isActive: true });
         }
         

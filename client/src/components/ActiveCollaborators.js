@@ -3,11 +3,25 @@ import { Badge } from 'react-bootstrap';
 import './ActiveCollaborators.css';
 
 const ActiveCollaborators = ({ activeUsers, currentUser }) => {
+  console.log('ActiveCollaborators received:', { activeUsers, currentUser });
+  
   // Filter out the current user from the list
   const otherActiveUsers = activeUsers.filter(user => user !== currentUser);
 
+  console.log('Other active users:', otherActiveUsers);
+
   if (otherActiveUsers.length === 0) {
-    return null;
+    return (
+      <div className="active-collaborators" style={{ opacity: 0.5 }}>
+        <div className="active-collaborators-header">
+          <span className="active-indicator" style={{ background: '#666' }}></span>
+          <span className="active-text" style={{ color: '#666' }}>Actively Editing:</span>
+        </div>
+        <div className="collaborators-list">
+          <span style={{ color: '#666', fontSize: '12px' }}>No other users currently editing</span>
+        </div>
+      </div>
+    );
   }
 
   return (
