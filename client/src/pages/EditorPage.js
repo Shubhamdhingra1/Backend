@@ -291,7 +291,7 @@ export default function EditorPage() {
     <div style={{ minHeight: "100vh", background: "#181c20" }}>
       {/* Topbar */}
       <nav className="navbar navbar-dark bg-dark px-4">
-        <span className="navbar-brand mb-0 h1">ReplitCollab</span>
+        <span className="navbar-brand mb-0 h1">Realtime Collab</span>
         <span className="text-light">
           Logged in as <b>{username}</b>
         </span>
