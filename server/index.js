@@ -68,12 +68,15 @@ io.on('connection', (socket) => {
     // Send current document state to the new user
     socket.emit('document', documentStates[docId]);
     
-    // Send current active users to the new user
+    // Send current active users to the new user (including themselves)
     socket.emit('active-users-update', Array.from(activeUsers[docId]));
     
     // Notify other users about the new user joining the document
     socket.to(docId).emit('user-joined', username);
     socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
+    
+    // Also send the updated list to the new user to ensure they see themselves
+    socket.emit('active-users-update', Array.from(activeUsers[docId]));
   });
 
   socket.on('send-changes', (data) => {
@@ -95,11 +98,14 @@ io.on('connection', (socket) => {
     const { username, isActive } = data;
     
     if (isActive) {
-      // User is actively editing
+      // User is actively editing - ensure they're in the active users list
       activeUsers[currentDocId].add(username);
     } else {
-      // User stopped editing
-      activeUsers[currentDocId].delete(username);
+      // User stopped editing - but keep them in the list since they still have the document open
+      // Only remove if they're not in the document users list
+      if (!activeUsers[currentDocId].has(username)) {
+        activeUsers[currentDocId].add(username);
+      }
     }
     
     // Broadcast updated active users list to all users in the document

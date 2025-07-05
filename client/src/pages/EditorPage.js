@@ -132,6 +132,7 @@ export default function EditorPage() {
       }
     });
     socket.on("user-joined", (name) => {
+      console.log('User joined:', name);
       setCollaborators((prev) => (prev.includes(name) ? prev : [...prev, name]));
       setActiveUsers((prev) => (prev.includes(name) ? prev : [...prev, name]));
     });
@@ -141,6 +142,8 @@ export default function EditorPage() {
     });
     socket.on("active-users-update", (users) => {
       console.log('Received active users update:', users);
+      console.log('Current user:', username);
+      console.log('Users list includes current user:', users.includes(username));
       setActiveUsers(users);
     });
 
@@ -169,6 +172,13 @@ export default function EditorPage() {
     // eslint-disable-next-line
   }, [id, username]);
 
+  // Ensure current user is always included in active users list
+  useEffect(() => {
+    if (username && !activeUsers.includes(username)) {
+      console.log('Adding current user to active users list:', username);
+      setActiveUsers(prev => [...prev, username]);
+    }
+  }, [username, activeUsers]);
 
 
   const handleChange = (value, delta, source, editor) => {

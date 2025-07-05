@@ -5,10 +5,10 @@ import './ActiveCollaborators.css';
 const ActiveCollaborators = ({ activeUsers, currentUser }) => {
   console.log('ActiveCollaborators received:', { activeUsers, currentUser });
   
-  // Show all active users including the current user
-  const allActiveUsers = activeUsers;
+  // Ensure current user is included in the list
+  const allActiveUsers = activeUsers.includes(currentUser) ? activeUsers : [...activeUsers, currentUser];
 
-  console.log('All active users:', allActiveUsers);
+  console.log('All active users (including current):', allActiveUsers);
 
   if (allActiveUsers.length === 0) {
     return (
