@@ -83,10 +83,13 @@ io.on('connection', (socket) => {
     // Send all document users to the new user
     socket.emit('document-users-update', Array.from(documentUsers[docId]));
     
-    // Notify other users about the new user
+    // Notify other users about the new user joining the document
     socket.to(docId).emit('user-joined', username);
     socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
     socket.to(docId).emit('document-users-update', Array.from(documentUsers[docId]));
+    
+    // Also send the updated list to the new user to ensure they see themselves
+    socket.emit('document-users-update', Array.from(documentUsers[docId]));
   });
 
   socket.on('send-changes', (data) => {

@@ -35,7 +35,6 @@ export default function EditorPage() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [collaborators, setCollaborators] = useState([]);
-  const [activeUsers, setActiveUsers] = useState([]);
   const [allDocumentUsers, setAllDocumentUsers] = useState([]);
   const [versions, setVersions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -45,7 +44,6 @@ export default function EditorPage() {
   const [error, setError] = useState("");
   const [isUserActive, setIsUserActive] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [localActiveUsers, setLocalActiveUsers] = useState([]);
   const quillRef = useRef(null);
   const activityTimeoutRef = useRef(null);
   const socketRef = useRef(null);
@@ -143,8 +141,7 @@ export default function EditorPage() {
     });
     socket.on("active-users-update", (users) => {
       console.log('Received active users update:', users);
-      setActiveUsers(users);
-      setLocalActiveUsers(users);
+      // We don't need to track active users separately anymore
     });
     socket.on("document-users-update", (users) => {
       console.log('Received document users update:', users);
@@ -177,22 +174,10 @@ export default function EditorPage() {
     // eslint-disable-next-line
   }, [id, username]);
 
-  // Update local active users when user's active state changes
-  useEffect(() => {
-    if (isUserActive) {
-      setLocalActiveUsers(prev => 
-        prev.includes(username) ? prev : [...prev, username]
-      );
-    } else {
-      setLocalActiveUsers(prev => prev.filter(user => user !== username));
-    }
-  }, [isUserActive, username]);
-
-  // Combine all document users and active users for the final list
-  const allActiveAndDocumentUsers = React.useMemo(() => {
-    const combined = [...new Set([...allDocumentUsers, ...localActiveUsers])];
-    return combined;
-  }, [allDocumentUsers, localActiveUsers]);
+  // Combine all document users for the final list (no need for separate active users tracking)
+  const allDocumentUsersList = React.useMemo(() => {
+    return allDocumentUsers;
+  }, [allDocumentUsers]);
 
   const handleChange = (value, delta, source, editor) => {
     // Only update content if the change is from user input
@@ -374,7 +359,7 @@ export default function EditorPage() {
               <Card.Body>
                 {/* Active Collaborators */}
                 <ActiveCollaborators 
-                  activeUsers={allActiveAndDocumentUsers} 
+                  activeUsers={allDocumentUsersList} 
                   currentUser={username} 
                 />
                 

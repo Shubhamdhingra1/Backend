@@ -15,10 +15,10 @@ const ActiveCollaborators = ({ activeUsers, currentUser }) => {
       <div className="active-collaborators" style={{ opacity: 0.5 }}>
         <div className="active-collaborators-header">
           <span className="active-indicator" style={{ background: '#666' }}></span>
-          <span className="active-text" style={{ color: '#666' }}>Actively Editing Users:</span>
+          <span className="active-text" style={{ color: '#666' }}>Document Users:</span>
         </div>
         <div className="collaborators-list">
-          <span style={{ color: '#666', fontSize: '12px' }}>No users currently editing</span>
+          <span style={{ color: '#666', fontSize: '12px' }}>No users currently viewing</span>
         </div>
       </div>
     );
@@ -28,7 +28,7 @@ const ActiveCollaborators = ({ activeUsers, currentUser }) => {
           <div className="active-collaborators">
         <div className="active-collaborators-header">
           <span className="active-indicator"></span>
-          <span className="active-text">Actively Editing Users:</span>
+          <span className="active-text">Document Users:</span>
         </div>
       <div className="collaborators-list">
         {allActiveUsers.map((username) => (
