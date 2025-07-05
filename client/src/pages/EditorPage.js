@@ -41,6 +41,7 @@ export default function EditorPage() {
   const [inviteUser, setInviteUser] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
   const [isOwner, setIsOwner] = useState(false);
+  const [documentOwner, setDocumentOwner] = useState("");
   const [error, setError] = useState("");
   const [isUserActive, setIsUserActive] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -107,7 +108,14 @@ export default function EditorPage() {
         setContent(res.data.content);
         setTitle(res.data.title);
         setIsOwner(res.data.ownerUsername === username);
+        setDocumentOwner(res.data.ownerUsername);
         setCollaborators(res.data.collaboratorsUsernames || []);
+        
+        // Add owner to active users list if they're not already there
+        if (res.data.ownerUsername && !activeUsers.includes(res.data.ownerUsername)) {
+          console.log('Adding document owner to active users list:', res.data.ownerUsername);
+          setActiveUsers(prev => [...prev, res.data.ownerUsername]);
+        }
       })
       .catch(() => setError("Failed to load document"));
 
@@ -192,6 +200,14 @@ export default function EditorPage() {
       });
     }
   }, [username, socketConnected]);
+
+  // Ensure document owner is always included in active users list
+  useEffect(() => {
+    if (documentOwner && !activeUsers.includes(documentOwner)) {
+      console.log('Adding document owner to active users list:', documentOwner);
+      setActiveUsers(prev => [...prev, documentOwner]);
+    }
+  }, [documentOwner]);
 
 
   const handleChange = (value, delta, source, editor) => {
@@ -376,6 +392,7 @@ export default function EditorPage() {
                 <ActiveCollaborators 
                   activeUsers={activeUsers} 
                   currentUser={username} 
+                  documentOwner={documentOwner}
                 />
                 
                 <ReactQuill

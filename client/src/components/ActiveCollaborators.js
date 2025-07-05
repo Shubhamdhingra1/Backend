@@ -2,8 +2,8 @@ import React from 'react';
 import { Badge } from 'react-bootstrap';
 import './ActiveCollaborators.css';
 
-const ActiveCollaborators = ({ activeUsers, currentUser }) => {
-  console.log('ActiveCollaborators received:', { activeUsers, currentUser });
+const ActiveCollaborators = ({ activeUsers, currentUser, documentOwner }) => {
+  console.log('ActiveCollaborators received:', { activeUsers, currentUser, documentOwner });
   
   // Ensure current user is included in the list and remove duplicates
   const allActiveUsers = [...new Set([...activeUsers, currentUser])];
@@ -47,7 +47,8 @@ const ActiveCollaborators = ({ activeUsers, currentUser }) => {
               boxShadow: username === currentUser ? "0 0 8px rgba(255,255,255,0.3)" : "none"
             }}
           >
-            {username === currentUser ? `${username} (You)` : username}
+            {username === currentUser ? `${username} (You)` : 
+             username === documentOwner ? `${username} (Owner)` : username}
           </Badge>
         ))}
       </div>

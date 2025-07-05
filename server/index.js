@@ -74,6 +74,9 @@ io.on('connection', (socket) => {
     // Notify other users about the new user joining the document
     socket.to(docId).emit('user-joined', username);
     socket.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
+    
+    // Also send the updated list to all users in the document to ensure everyone sees the same list
+    io.to(docId).emit('active-users-update', Array.from(activeUsers[docId]));
   });
 
   socket.on('send-changes', (data) => {
