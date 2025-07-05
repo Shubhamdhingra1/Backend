@@ -3,13 +3,9 @@ import { Badge } from 'react-bootstrap';
 import './ActiveCollaborators.css';
 
 const ActiveCollaborators = ({ activeUsers, currentUser, documentOwner }) => {
-  console.log('ActiveCollaborators received:', { activeUsers, currentUser, documentOwner });
-  
   // Ensure current user is included in the list and remove duplicates
   const allActiveUsers = [...new Set([...activeUsers, currentUser])];
-
-  console.log('All active users (including current):', allActiveUsers);
-
+  
   if (allActiveUsers.length === 0) {
     return (
       <div className="active-collaborators" style={{ opacity: 0.5 }}>

@@ -113,7 +113,6 @@ export default function EditorPage() {
         
         // Add owner to active users list if they're not already there
         if (res.data.ownerUsername && !activeUsers.includes(res.data.ownerUsername)) {
-          console.log('Adding document owner to active users list:', res.data.ownerUsername);
           setActiveUsers(prev => [...prev, res.data.ownerUsername]);
         }
       })
@@ -140,7 +139,6 @@ export default function EditorPage() {
       }
     });
     socket.on("user-joined", (name) => {
-      console.log('User joined:', name);
       setCollaborators((prev) => (prev.includes(name) ? prev : [...prev, name]));
       setActiveUsers((prev) => (prev.includes(name) ? prev : [...prev, name]));
     });
@@ -149,9 +147,6 @@ export default function EditorPage() {
       setActiveUsers((prev) => prev.filter((n) => n !== name));
     });
     socket.on("active-users-update", (users) => {
-      console.log('Received active users update:', users);
-      console.log('Current user:', username);
-      console.log('Users list includes current user:', users.includes(username));
       setActiveUsers(users);
     });
 
@@ -183,7 +178,6 @@ export default function EditorPage() {
   // Ensure current user is always included in active users list
   useEffect(() => {
     if (username && !activeUsers.includes(username)) {
-      console.log('Adding current user to active users list:', username);
       setActiveUsers(prev => [...prev, username]);
     }
   }, [username]); // Removed activeUsers dependency to prevent infinite loop
@@ -191,7 +185,6 @@ export default function EditorPage() {
   // Add current user to active users list when component mounts
   useEffect(() => {
     if (username && socketConnected) {
-      console.log('Component mounted - ensuring current user in active list:', username);
       setActiveUsers(prev => {
         if (!prev.includes(username)) {
           return [...prev, username];
@@ -204,7 +197,6 @@ export default function EditorPage() {
   // Ensure document owner is always included in active users list
   useEffect(() => {
     if (documentOwner && !activeUsers.includes(documentOwner)) {
-      console.log('Adding document owner to active users list:', documentOwner);
       setActiveUsers(prev => [...prev, documentOwner]);
     }
   }, [documentOwner]);
@@ -220,7 +212,6 @@ export default function EditorPage() {
         // Mark user as active
         if (!isUserActive) {
           setIsUserActive(true);
-          console.log('Marking user as active:', username);
           socketRef.current.emit("user-activity", { username, isActive: true });
         }
         
