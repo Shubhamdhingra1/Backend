@@ -178,7 +178,20 @@ export default function EditorPage() {
       console.log('Adding current user to active users list:', username);
       setActiveUsers(prev => [...prev, username]);
     }
-  }, [username, activeUsers]);
+  }, [username]); // Removed activeUsers dependency to prevent infinite loop
+
+  // Add current user to active users list when component mounts
+  useEffect(() => {
+    if (username && socketConnected) {
+      console.log('Component mounted - ensuring current user in active list:', username);
+      setActiveUsers(prev => {
+        if (!prev.includes(username)) {
+          return [...prev, username];
+        }
+        return prev;
+      });
+    }
+  }, [username, socketConnected]);
 
 
   const handleChange = (value, delta, source, editor) => {

@@ -5,8 +5,8 @@ import './ActiveCollaborators.css';
 const ActiveCollaborators = ({ activeUsers, currentUser }) => {
   console.log('ActiveCollaborators received:', { activeUsers, currentUser });
   
-  // Ensure current user is included in the list
-  const allActiveUsers = activeUsers.includes(currentUser) ? activeUsers : [...activeUsers, currentUser];
+  // Ensure current user is included in the list and remove duplicates
+  const allActiveUsers = [...new Set([...activeUsers, currentUser])];
 
   console.log('All active users (including current):', allActiveUsers);
 
