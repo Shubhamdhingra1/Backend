@@ -35,7 +35,7 @@ export default function EditorPage() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [collaborators, setCollaborators] = useState([]);
-  const [allDocumentUsers, setAllDocumentUsers] = useState([]);
+  const [activeUsers, setActiveUsers] = useState([]);
   const [versions, setVersions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [inviteUser, setInviteUser] = useState("");
@@ -133,19 +133,15 @@ export default function EditorPage() {
     });
     socket.on("user-joined", (name) => {
       setCollaborators((prev) => (prev.includes(name) ? prev : [...prev, name]));
-      setAllDocumentUsers((prev) => (prev.includes(name) ? prev : [...prev, name]));
+      setActiveUsers((prev) => (prev.includes(name) ? prev : [...prev, name]));
     });
     socket.on("user-left", (name) => {
       setCollaborators((prev) => prev.filter((n) => n !== name));
-      setAllDocumentUsers((prev) => prev.filter((n) => n !== name));
+      setActiveUsers((prev) => prev.filter((n) => n !== name));
     });
     socket.on("active-users-update", (users) => {
       console.log('Received active users update:', users);
-      // We don't need to track active users separately anymore
-    });
-    socket.on("document-users-update", (users) => {
-      console.log('Received document users update:', users);
-      setAllDocumentUsers(users);
+      setActiveUsers(users);
     });
 
     return () => {
@@ -161,7 +157,6 @@ export default function EditorPage() {
       socket.off("user-joined");
       socket.off("user-left");
       socket.off("active-users-update");
-      socket.off("document-users-update");
       
       // Disconnect socket
       socket.disconnect();
@@ -174,10 +169,7 @@ export default function EditorPage() {
     // eslint-disable-next-line
   }, [id, username]);
 
-  // Combine all document users for the final list (no need for separate active users tracking)
-  const allDocumentUsersList = React.useMemo(() => {
-    return allDocumentUsers;
-  }, [allDocumentUsers]);
+
 
   const handleChange = (value, delta, source, editor) => {
     // Only update content if the change is from user input
@@ -357,9 +349,9 @@ export default function EditorPage() {
               }}
             >
               <Card.Body>
-                {/* Active Collaborators */}
+                {/* Active Users */}
                 <ActiveCollaborators 
-                  activeUsers={allDocumentUsersList} 
+                  activeUsers={activeUsers} 
                   currentUser={username} 
                 />
                 
