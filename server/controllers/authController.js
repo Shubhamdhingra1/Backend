@@ -44,3 +44,12 @@ exports.getMe = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+exports.verify = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json({ username: user.username });
+  } catch (err) {
+    res.status(401).json({ message: 'Token is not valid' });
+  }
+};

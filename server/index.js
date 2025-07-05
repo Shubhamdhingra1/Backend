@@ -7,9 +7,26 @@ const socketio = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketio(server, { cors: { origin: 'http://localhost:3000', credentials: true } });
 
-app.use(cors());
+// CORS configuration for both development and production
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://realtimecollaborationplatform.vercel.app',
+  'https://realtimecollaborationplatform.vercel.app/'
+];
+
+const io = socketio(server, { 
+  cors: { 
+    origin: allowedOrigins, 
+    credentials: true,
+    methods: ["GET", "POST"]
+  } 
+});
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -24,13 +41,26 @@ io.on('connection', (socket) => {
   socket.on('join-document', ({ docId, username }) => {
     socket.join(docId);
     socket.to(docId).emit('user-joined', username);
-    if (documentStates[docId]) {
-      socket.emit('document', documentStates[docId]);
+    
+    // Initialize document state for this document
+    if (!documentStates[docId]) {
+      documentStates[docId] = '';
     }
-    socket.on('send-changes', (delta) => {
+    
+    // Send current document state to the new user
+    socket.emit('document', documentStates[docId]);
+    
+    socket.on('send-changes', (data) => {
+      const { delta, username } = data;
       documentStates[docId] = delta;
-      socket.to(docId).emit('receive-changes', delta);
+      
+      // Broadcast changes to other users
+      socket.to(docId).emit('receive-changes', {
+        delta,
+        username
+      });
     });
+    
     socket.on('disconnect', () => {
       socket.to(docId).emit('user-left', username);
     });

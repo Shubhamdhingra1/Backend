@@ -3,6 +3,7 @@ import API from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { Button, Container, Form, Card, Row, Col, Alert, InputGroup } from 'react-bootstrap';
 import { FaEdit, FaTrash } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
   const [docs, setDocs] = useState([]);
@@ -10,6 +11,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     API.get('/documents')

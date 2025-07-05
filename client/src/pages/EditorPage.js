@@ -1,13 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import API from '../services/api';
-import { io } from 'socket.io-client';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-import { Button, Container, Card, Badge, Row, Col, Form, Alert } from 'react-bootstrap';
-import VersionHistory from '../components/VersionHistory';
+import React, { useEffect, useState, useRef } from "react";
+import { useParams } from "react-router-dom";
+import API from "../services/api";
+import { io } from "socket.io-client";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+import {
+  Button,
+  Container,
+  Card,
+  Badge,
+  Row,
+  Col,
+  Form,
+  Alert,
+} from "react-bootstrap";
+import VersionHistory from "../components/VersionHistory";
+import ActiveCollaborators from "../components/ActiveCollaborators";
+import { BACKEND_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
-const socket = io('http://localhost:5000');
+const socket = io(BACKEND_URL);
 
 function getColorForUser(name) {
   let hash = 0;
@@ -20,78 +32,112 @@ function getColorForUser(name) {
 
 export default function EditorPage() {
   const { id } = useParams();
-  const username = localStorage.getItem('username') || 'Anonymous';
-  const [content, setContent] = useState('');
-  const [title, setTitle] = useState('');
+  const { user } = useAuth();
+  const username = user?.username || "Anonymous";
+  const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
   const [collaborators, setCollaborators] = useState([]);
   const [versions, setVersions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [inviteUser, setInviteUser] = useState('');
-  const [inviteMsg, setInviteMsg] = useState('');
+  const [inviteUser, setInviteUser] = useState("");
+  const [inviteMsg, setInviteMsg] = useState("");
   const [isOwner, setIsOwner] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const quillRef = useRef(null);
 
   useEffect(() => {
-    API.get(`/documents/${id}`).then(res => {
-      setContent(res.data.content);
-      setTitle(res.data.title);
-      setIsOwner(res.data.ownerUsername === username);
-      setCollaborators(res.data.collaboratorsUsernames || []);
-    }).catch(() => setError('Failed to load document'));
+    API.get(`/documents/${id}`)
+      .then((res) => {
+        setContent(res.data.content);
+        setTitle(res.data.title);
+        setIsOwner(res.data.ownerUsername === username);
+        setCollaborators(res.data.collaboratorsUsernames || []);
+      })
+      .catch(() => setError("Failed to load document"));
 
-    API.get(`/documents/${id}/versions`).then(res => setVersions(res.data));
-    socket.emit('join-document', { docId: id, username });
+    API.get(`/documents/${id}/versions`).then((res) => setVersions(res.data));
+    socket.emit("join-document", { docId: id, username });
 
-    socket.on('document', data => setContent(data));
-    socket.on('receive-changes', data => setContent(data));
-    socket.on('user-joined', name => setCollaborators(prev => prev.includes(name) ? prev : [...prev, name]));
-    socket.on('user-left', name => setCollaborators(prev => prev.filter(n => n !== name)));
+    socket.on("document", (data) => setContent(data));
+    socket.on("receive-changes", (data) => {
+      if (typeof data === 'string') {
+        // Handle legacy format
+        setContent(data);
+      } else {
+        // Handle new format - only update content if it's from another user
+        if (data.username !== username) {
+          setContent(data.delta);
+        }
+      }
+    });
+    socket.on("user-joined", (name) =>
+      setCollaborators((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    );
+    socket.on("user-left", (name) => {
+      setCollaborators((prev) => prev.filter((n) => n !== name));
+    });
 
     return () => {
-      socket.off('document');
-      socket.off('receive-changes');
-      socket.off('user-joined');
-      socket.off('user-left');
+      socket.off("document");
+      socket.off("receive-changes");
+      socket.off("user-joined");
+      socket.off("user-left");
     };
     // eslint-disable-next-line
   }, [id]);
 
-  const handleChange = value => {
-    setContent(value);
-    socket.emit('send-changes', value);
+  const handleChange = (value, delta, source, editor) => {
+    // Only update content if the change is from user input
+    if (source === 'user') {
+      setContent(value);
+      
+      // Send changes to other users
+      socket.emit("send-changes", {
+        delta: value,
+        username: username
+      });
+    }
   };
+
+
 
   const save = async () => {
     await API.put(`/documents/${id}`, { content });
-    API.get(`/documents/${id}/versions`).then(res => setVersions(res.data));
-    alert('Saved!');
+    API.get(`/documents/${id}/versions`).then((res) => setVersions(res.data));
+    alert("Saved!");
   };
 
   const handleInvite = async (e) => {
     e.preventDefault();
     try {
-      const res = await API.post(`/documents/${id}/invite`, { username: inviteUser });
+      const res = await API.post(`/documents/${id}/invite`, {
+        username: inviteUser,
+      });
       setInviteMsg(res.data.msg);
-      setInviteUser('');
-      setCollaborators(prev => prev.includes(inviteUser) ? prev : [...prev, inviteUser]);
+      setInviteUser("");
+      setCollaborators((prev) =>
+        prev.includes(inviteUser) ? prev : [...prev, inviteUser]
+      );
     } catch (err) {
-      setInviteMsg(err.response?.data?.msg || 'Error');
+      setInviteMsg(err.response?.data?.msg || "Error");
     }
   };
 
   const revert = async (versionId) => {
     await API.post(`/documents/${id}/revert`, { versionId });
-    API.get(`/documents/${id}`).then(res => setContent(res.data.content));
-    API.get(`/documents/${id}/versions`).then(res => setVersions(res.data));
+    API.get(`/documents/${id}`).then((res) => setContent(res.data.content));
+    API.get(`/documents/${id}/versions`).then((res) => setVersions(res.data));
     setShowHistory(false);
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#181c20' }}>
+    <div style={{ minHeight: "100vh", background: "#181c20" }}>
       {/* Topbar */}
       <nav className="navbar navbar-dark bg-dark px-4">
         <span className="navbar-brand mb-0 h1">ReplitCollab</span>
-        <span className="text-light">Logged in as <b>{username}</b></span>
+        <span className="text-light">
+          Logged in as <b>{username}</b>
+        </span>
       </nav>
 
       <Container fluid className="py-4">
@@ -103,15 +149,15 @@ export default function EditorPage() {
               <Card.Body>
                 <Card.Title>Collaborators</Card.Title>
                 <div className="mb-2">
-                  {collaborators.map(name => (
+                  {collaborators.map((name) => (
                     <Badge
                       key={name}
                       style={{
                         background: getColorForUser(name),
-                        color: '#222',
+                        color: "#222",
                         marginRight: 6,
                         fontSize: 16,
-                        padding: '0.5em 0.8em'
+                        padding: "0.5em 0.8em",
                       }}
                     >
                       {name}
@@ -122,12 +168,14 @@ export default function EditorPage() {
                   <Form onSubmit={handleInvite} className="d-flex">
                     <Form.Control
                       value={inviteUser}
-                      onChange={e => setInviteUser(e.target.value)}
+                      onChange={(e) => setInviteUser(e.target.value)}
                       placeholder="Invite by username"
                       className="mr-2"
                       required
                     />
-                    <Button type="submit" variant="primary">Invite</Button>
+                    <Button type="submit" variant="primary">
+                      Invite
+                    </Button>
                   </Form>
                 )}
                 {inviteMsg && <div className="mt-2 text-info">{inviteMsg}</div>}
@@ -140,7 +188,7 @@ export default function EditorPage() {
                   <b>Title:</b> {title}
                 </div>
                 <div>
-                  <b>Owner:</b> {isOwner ? 'You' : ''}
+                  <b>Owner:</b> {isOwner ? "You" : ""}
                 </div>
                 <Button
                   variant="info"
@@ -150,12 +198,7 @@ export default function EditorPage() {
                 >
                   Version History
                 </Button>
-                <Button
-                  variant="secondary"
-                  className="mt-2"
-                  href="/"
-                  block
-                >
+                <Button variant="secondary" className="mt-2" href="/" block>
                   Back to Dashboard
                 </Button>
               </Card.Body>
@@ -166,26 +209,36 @@ export default function EditorPage() {
           <Col md={9}>
             <Card
               style={{
-                minHeight: '80vh',
-                background: '#23272e',
-                border: 'none',
-                boxShadow: '0 0 24px #0008'
+                minHeight: "80vh",
+                background: "#23272e",
+                border: "none",
+                boxShadow: "0 0 24px #0008",
+                position: "relative",
               }}
             >
               <Card.Body>
+                {/* Active Collaborators */}
+                <ActiveCollaborators 
+                  collaborators={collaborators} 
+                  currentUser={username} 
+                />
+                
                 <ReactQuill
                   value={content}
                   onChange={handleChange}
                   style={{
-                    height: '65vh',
-                    background: '#181c20',
-                    color: '#fff',
-                    borderRadius: '8px'
+                    height: "65vh",
+                    background: "#181c20",
+                    color: "#fff",
+                    borderRadius: "8px",
                   }}
                   theme="snow"
+                  ref={quillRef}
                 />
                 <div className="mt-4 d-flex">
-                  <Button variant="success" onClick={save}>Save</Button>
+                  <Button variant="success" onClick={save}>
+                    Save
+                  </Button>
                 </div>
               </Card.Body>
             </Card>
