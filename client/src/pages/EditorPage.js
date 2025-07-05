@@ -44,6 +44,7 @@ export default function EditorPage() {
   const [error, setError] = useState("");
   const [isUserActive, setIsUserActive] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [localActiveUsers, setLocalActiveUsers] = useState([]);
   const quillRef = useRef(null);
   const activityTimeoutRef = useRef(null);
   const socketRef = useRef(null);
@@ -140,6 +141,7 @@ export default function EditorPage() {
     socket.on("active-users-update", (users) => {
       console.log('Received active users update:', users);
       setActiveUsers(users);
+      setLocalActiveUsers(users);
     });
 
     return () => {
@@ -166,6 +168,17 @@ export default function EditorPage() {
     };
     // eslint-disable-next-line
   }, [id, username]);
+
+  // Update local active users when user's active state changes
+  useEffect(() => {
+    if (isUserActive) {
+      setLocalActiveUsers(prev => 
+        prev.includes(username) ? prev : [...prev, username]
+      );
+    } else {
+      setLocalActiveUsers(prev => prev.filter(user => user !== username));
+    }
+  }, [isUserActive, username]);
 
   const handleChange = (value, delta, source, editor) => {
     // Only update content if the change is from user input
@@ -347,7 +360,7 @@ export default function EditorPage() {
               <Card.Body>
                 {/* Active Collaborators */}
                 <ActiveCollaborators 
-                  activeUsers={activeUsers} 
+                  activeUsers={localActiveUsers} 
                   currentUser={username} 
                 />
                 

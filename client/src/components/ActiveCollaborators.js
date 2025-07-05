@@ -5,12 +5,12 @@ import './ActiveCollaborators.css';
 const ActiveCollaborators = ({ activeUsers, currentUser }) => {
   console.log('ActiveCollaborators received:', { activeUsers, currentUser });
   
-  // Filter out the current user from the list
-  const otherActiveUsers = activeUsers.filter(user => user !== currentUser);
+  // Show all active users including the current user
+  const allActiveUsers = activeUsers;
 
-  console.log('Other active users:', otherActiveUsers);
+  console.log('All active users:', allActiveUsers);
 
-  if (otherActiveUsers.length === 0) {
+  if (allActiveUsers.length === 0) {
     return (
       <div className="active-collaborators" style={{ opacity: 0.5 }}>
         <div className="active-collaborators-header">
@@ -18,7 +18,7 @@ const ActiveCollaborators = ({ activeUsers, currentUser }) => {
           <span className="active-text" style={{ color: '#666' }}>Actively Editing:</span>
         </div>
         <div className="collaborators-list">
-          <span style={{ color: '#666', fontSize: '12px' }}>No other users currently editing</span>
+          <span style={{ color: '#666', fontSize: '12px' }}>No users currently editing</span>
         </div>
       </div>
     );
@@ -31,7 +31,7 @@ const ActiveCollaborators = ({ activeUsers, currentUser }) => {
         <span className="active-text">Actively Editing:</span>
       </div>
       <div className="collaborators-list">
-        {otherActiveUsers.map((username) => (
+        {allActiveUsers.map((username) => (
           <Badge
             key={username}
             className="collaborator-badge"
@@ -42,10 +42,12 @@ const ActiveCollaborators = ({ activeUsers, currentUser }) => {
               fontSize: 14,
               padding: "6px 12px",
               borderRadius: "20px",
-              fontWeight: "500"
+              fontWeight: "500",
+              border: username === currentUser ? "2px solid #fff" : "none",
+              boxShadow: username === currentUser ? "0 0 8px rgba(255,255,255,0.3)" : "none"
             }}
           >
-            {username}
+            {username === currentUser ? `${username} (You)` : username}
           </Badge>
         ))}
       </div>
